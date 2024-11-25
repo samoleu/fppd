@@ -1,65 +1,78 @@
-import concurrent.futures
+import multiprocessing
+import csv
 import time
-import random
 
-def sequential_prefix_sum(input_list):
-    length = len(input_list)
-    prefix_sum = [0] * length
-    prefix_sum[0] = input_list[0]
-    for i in range(1, length):
-        prefix_sum[i] = input_list[i - 1] + input_list[i]
-    return prefix_sum
+def load_numbers_from_csv(file_path):
+    with open(file_path, 'r') as file:
+        reader = csv.reader(file)
+        numbers = [int(float(row[0])) for row in reader]
+    return numbers
 
-#===============================================================================
+def calculate_prefix_sum_chunk(numbers, start_index, end_index, result_queue):
+    prefix_sum_chunk = []
+    for i in range(start_index, end_index):
+        if i == 0:
+            prefix_sum_chunk.append(numbers[0])
+        else:
+            prefix_sum_chunk.append(numbers[i-1] + numbers[i])
+    result_queue.put((start_index, prefix_sum_chunk))
 
-def parallel_prefix_sum(input_list):
-    length = len(input_list)
-    prefix_sum = [0] * length
-    prefix_sum[0] = input_list[0]
-    
-    def compute_sum_segment(start_index, end_index):
-        for i in range(start_index, end_index):
-            if i == 0:
-                prefix_sum[i] = input_list[i]
-            else:
-                prefix_sum[i] = input_list[i - 1] + input_list[i]
+def compute_parallel_prefix_sum(numbers, num_processes):
+    chunk_size = len(numbers) // num_processes
+    processes = []
+    result_queue = multiprocessing.Queue()
 
-    num_threads = 4
-    chunk_size = length // num_threads
-    futures = []
+    for i in range(num_processes):
+        start_index = i * chunk_size
+        end_index = (i + 1) * chunk_size if i < num_processes - 1 else len(numbers)
+        process = multiprocessing.Process(
+            target=calculate_prefix_sum_chunk,
+            args=(numbers, start_index, end_index, result_queue)
+        )
+        processes.append(process)
+        process.start()
 
-    with concurrent.futures.ThreadPoolExecutor(max_workers=num_threads) as executor:
-        for i in range(num_threads):
-            start_index = i * chunk_size
-            end_index = (i + 1) * chunk_size if i < num_threads - 1 else length
-            futures.append(executor.submit(compute_sum_segment, start_index, end_index))
-        concurrent.futures.wait(futures)
-    return prefix_sum
+    result = [0] * len(numbers)
+    for _ in processes:
+        start_index, prefix_sum_chunk = result_queue.get()
+        for i, value in enumerate(prefix_sum_chunk):
+            result[start_index + i] = value
 
-def main():
-    
-    list_size = 50000
+    for process in processes:
+        process.join()
 
-    input_list = [random.randint(1, 100) for _ in range(list_size)]
-
-    start_time = time.perf_counter()
-    sequential_result = sequential_prefix_sum(input_list)
-    sequential_time = time.perf_counter() - start_time
-
-    start_time = time.perf_counter()
-    parallel_result = parallel_prefix_sum(input_list)
-    parallel_time = time.perf_counter() - start_time
-
-    if sequential_result != parallel_result:
-        print("Error: The sequential and parallel results are different.")
-    else:
-        print("The sequential and parallel results are the same.")
-
-    speedup = sequential_time / parallel_time
-
-    print(f"Sequential time: {sequential_time:.6f} seconds")
-    print(f"Parallel time: {parallel_time:.6f} seconds")
-    print(f"Speedup: {speedup:.2f}")
+    return result
 
 if __name__ == "__main__":
-    main()
+    csv_file = "./dados/C.csv"
+
+    num_processes = 12
+
+    numbers = load_numbers_from_csv(csv_file)
+    print(f"Total de números carregados: {len(numbers)}")
+
+    print("Executando soma de prefixos serial...")
+    start_time = time.time()
+    serial_result = compute_parallel_prefix_sum(numbers, 1)
+    end_time = time.time()
+
+    serial_time = end_time - start_time
+    print(f"Soma de Prefixos Serial completa. Tempo: {serial_time:.4f} segundos")
+
+    print("Executando soma de prefixos paralela...")
+    start_time = time.time()
+    parallel_result = compute_parallel_prefix_sum(numbers, num_processes)
+    end_time = time.time()
+
+    parallel_time = end_time - start_time
+    print(f"Soma de Prefixos Paralela completa. Tempo: {parallel_time:.4f} segundos")
+
+    # Calcular o speedup
+    speedup = serial_time / parallel_time
+    print(f"Speedup: {speedup:.2f}")
+
+    # Verificar resultados
+    if serial_result == parallel_result:
+        print("Os resultados coincidem!")
+    else:
+        print("Os resultados NÃO coincidem! Verifique a implementação.")

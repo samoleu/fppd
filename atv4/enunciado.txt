@@ -1,0 +1,2 @@
+Soma de Prefixos Dado um Array A com 50.000 posições inteiras. Desenvolver um programa paralelo que retorne um vetor B com a  soma doa prefixos(B[i]= Somatória A[ i-1 : i]),com speedup  maior ou igual a 1,5
+retorno:vetor  com a soma de prefixos B com 50 mil posições;
