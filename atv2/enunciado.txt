@@ -1,0 +1,3 @@
+Dado um vetor de 50.000 inteiros. Desenvolver um programa paralelo que ordene esse vetor, com um speedup maior ou igual a 1,7
+Retorno: vetor ordenado
+

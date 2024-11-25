@@ -1,0 +1,2 @@
+Dadas duas Matrizes A 200x400  e B 400x100. Desenvolver um programa paralelo que multiplique essas matrizes com speedup  maior ou igual a 1,5
+retorno: Mastriz resultante;
